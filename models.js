@@ -21,7 +21,8 @@ let movieSchema = mongoose.Schema({
     username: { type: String, required: true }, 
     email: { type: String, required: true }, 
     favoriteMovie: { type: String },
-    birthday: Date, 
+    birthday: Date,
+    password: { type: String, required: true }
     
   });
   let Movie = mongoose.model('Movie', movieSchema);

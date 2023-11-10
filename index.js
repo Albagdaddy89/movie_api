@@ -1,30 +1,36 @@
-const bodyParser = require('body-parser');
-const express = require('express');
-const morgan = require('morgan');
-uuid = require('uuid');
-const mongoose = require('mongoose');
-const { User, Movie} = require('./models.js');
+const express = require('express'),
+  morgan = require('morgan'),
+  bodyParser = require('body-parser'),
+  uuid = require('uuid'),
+  mongoose = require('mongoose')
 
 
-mongoose.connect('mongodb://127.0.0.1:27017/cfDB', { useNewUrlParser: true, useUnifiedTopology: true });
-
-
-// Create an instance of the express application
 const app = express();
+const Models = require('./models.js');
+const Movie = Models.Movie;
+const User = Models.User
 
-app.use(express.json())
+// connect to Mongodb
+mongoose.connect('mongodb://127.0.0.1:27017/cfDB');
 
-// Define the port number
-const port = 8080;
+
+// body parser
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// General logging middleware
+app.use((req, res, next) => {
+  console.log(`General Middleware: ${req.method} ${req.path}`);
+  next();
+});
 
 // Use Morgan middleware to log HTTP requests
 app.use(morgan('common'));
 
-// Serve static files from the 'public' directory
-app.use(express.static('public'));
-
-
-
+// Passport middleware
+let auth = require('./auth')(app);
+const passport = require('passport');
+require('./passport');
 
 
 // Define the root route
@@ -33,19 +39,12 @@ app.get('/', (req, res) => {
 });
 
 
-// Error-handling middleware, must be defined after other app.use() and route calls
-app.use((err, req, res, next) => {
-  console.error(err.stack); // Log error message in the server's console
-  res.status(500).send('Something broke!');
-});
+// Serve static files from the 'public' directory
+app.use(express.static('public'));
 
-// Start the server and listen on the specified port
-app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}/`);
-});
 
 //Return a list of ALL movies to the user
-app.get('/movies', async (req, res) => {
+app.get('/movies', passport.authenticate('jwt', { session: false }), async (req, res) => {
   await Movie.find()
     .then((movies) => {
       res.status(201).json(movies);
@@ -57,7 +56,7 @@ app.get('/movies', async (req, res) => {
 })
 
 //Return data (description, genre, director, image URL, whether it’s featured or not) about a single movie by title to the user;
-app.get('/movies/:Title', async (req, res) => {
+app.get('/movies/:Title',  passport.authenticate ('jwt', { session: false }), async (req, res) => {
   await Movie.findOne({ Title: req.params.Title })
     .then((movie) => {
       res.status(201).json(movie);
@@ -71,7 +70,7 @@ app.get('/movies/:Title', async (req, res) => {
 });
 
 //Return data about a genre (description) by name/title (e.g., “Thriller”);
-app.get('/movies/genre/:genreName', async (req, res) => {
+app.get('/movies/genre/:genreName',  passport.authenticate ('jwt', { session: false }), async (req, res) => {
   await Movie.find({ "Genre.Name": req.params.genreName })
     .then((movie) => {
       res.status(200).json(movie);
@@ -84,7 +83,7 @@ app.get('/movies/genre/:genreName', async (req, res) => {
 
 });
 //Return data about a director (bio, birth year, death year) by name;
-app.get('/movies/director/:directorName', async (req, res) => {
+app.get('/movies/director/:directorName',  passport.authenticate ('jwt', { session: false }), async (req, res) => {
   await Movie.find({ "Director.Name": req.params.directorName })
     .then((movie) => {
       res.status(200).json(movie);
@@ -95,7 +94,7 @@ app.get('/movies/director/:directorName', async (req, res) => {
     });
 })
 // Get all users
-app.get('/user', async (req, res) => {
+app.get('/user', passport.authenticate ('jwt', { session: false }), async (req, res) => {
   await User.find()
     .then((user) => {
       res.status(201).json(user);
@@ -107,8 +106,8 @@ app.get('/user', async (req, res) => {
 });
 
 // Get a user by username
-app.get('/user/:Username', async (req, res) => {
-  const username = req.params.Username;
+app.get('/user/:username',  passport.authenticate ('jwt', { session: false }), async (req, res) => {
+  const username = req.params.username;
   console.log(`Looking for username: ${username}`); // Add logging
 
   try {
@@ -137,7 +136,8 @@ app.post('/user', async (req, res) => {
           .create({
             username: req.body.username,
             email: req.body.email,
-            birthday: req.body.birthday
+            birthday: req.body.birthday,
+            password: req.body.password
           })
           .then((user) => { res.status(201).json(user) })
           .catch((error) => {
@@ -154,13 +154,17 @@ app.post('/user', async (req, res) => {
 
 
 // Update a user's info, by username
-app.put('/user/:Username', async (req, res) => {
-  await User.findOneAndUpdate({ username: req.params.Username }, {
+app.put('/user/:username', passport.authenticate ('jwt', { session: false }), async (req, res) => {
+  if(req.user.username !== req.params.username){
+    return res.status(400).send('Permission denied!');
+  }
+  await User.findOneAndUpdate({ username: req.params.username }, {
     $set:
     {
       username: req.body.username,
       email: req.body.email,
-      birthday: req.body.birthday
+      birthday: req.body.birthday,
+      password: req.body.birthday
     }
   },
     { new: true })
@@ -175,8 +179,8 @@ app.put('/user/:Username', async (req, res) => {
 });
 
 // Add a movie to a user's list of favorites
-app.post('/users/:Username/movies/:MovieID', async (req, res) => {
-  await User.findOneAndUpdate({ username: req.params.Username }, {
+app.post('/user/:username/movies/:MovieID',  passport.authenticate ('jwt', { session: false }), async (req, res) => {
+  await User.findOneAndUpdate({ username: req.params.username }, {
     $push: { FavoriteMovies: req.params.MovieID }
   },
     { new: true })
@@ -190,55 +194,60 @@ app.post('/users/:Username/movies/:MovieID', async (req, res) => {
 });
 
 // Remove a movie from a user's list of favorites
-app.delete('/users/:Username/movies/:MovieID', async (req, res) => {
+app.delete('/user/:username/movies/:MovieID',  passport.authenticate ('jwt', { session: false }), async (req, res) => {
   await User.findOneAndUpdate(
-    { username: req.params.Username },
+    { username: req.params.username },
     { $pull: { FavoriteMovies: req.params.MovieID } },
     { new: true }
   )
-  .then((user) => {
-    if (!user) {
-      res.status(400).send('User not found');
-    } else {
-      res.status(200).json(user);
-    }
-  })
-  .catch((err) => {
-    console.error(err);
-    res.status(500).send('Error: ' + err);
-  });
-});
-
-//Allow existing users to deregister (showing only a text that a user email has been removed—more on this later).
-app.delete('/user/:id', async (req, res) => {
-  
-  await User.findOneAndDelete({ _id: req.params.Username })
     .then((user) => {
       if (!user) {
-        res.status(400).send(req.params.id + ' was not found');
+        res.status(400).send('User not found');
       } else {
-        res.status(200).send(req.params.id + ' was deleted.');
+        res.status(200).json(user);
       }
     })
     .catch((err) => {
       console.error(err);
       res.status(500).send('Error: ' + err);
     });
-  });
+});
 
 
-  // Delete a user by username
-  app.delete('/user/:Username', async (req, res) => {
-    await User.findOneAndDelete({ Username: req.params.Username })
-      .then((user) => {
-        if (!user) {
-          res.status(400).send(req.params.Username + ' was not found');
-        } else {
-          res.status(200).send(req.params.Username + ' was deleted.');
-        }
-      })
-      .catch((err) => {
-        console.error(err);
-        res.status(500).send('Error: ' + err);
-      });
-  });
+
+// Delete a user by username
+app.delete('/user/:username',  passport.authenticate ('jwt', { session: false }), async (req, res) => {
+  const usernameToDelete = req.params.username;
+  if(req.user.username !== req.params.username){
+    return res.status(400).send('Permission denied!');
+  }
+  console.log("Received DELETE request for username:", usernameToDelete);
+
+  try {
+    const user = await User.findOneAndDelete({ username: usernameToDelete });
+    if (user) {
+      console.log("Successfully deleted user:", usernameToDelete);
+      res.status(200).send(usernameToDelete + ' was deleted.');
+    } else {
+      console.log("No user found with username:", usernameToDelete);
+      res.status(404).send('User ' + usernameToDelete + ' was not found');
+    }
+  } catch (err) {
+    console.error("Error during deletion:", err);
+    res.status(500).send('Error: ' + err);
+  }
+});
+
+
+// Error-handling middleware, must be defined after other app.use() and route calls
+app.use((err, req, res, next) => {
+  console.log(`Middleware: ${req.method} ${req.path}`);
+  console.error(err.stack); // Log error message in the server's console
+  res.status(500).send('Something broke!');
+});
+
+// Start the server and listen on the specified port
+const port = 8080;
+app.listen(port, () => {
+  console.log(`Server running at http://localhost:${port}/`);
+});
