@@ -2,10 +2,16 @@ const express = require('express'),
   morgan = require('morgan'),
   bodyParser = require('body-parser'),
   uuid = require('uuid'),
-  mongoose = require('mongoose')
+  mongoose = require('mongoose');
+
+const { check, validationResult } = require('express-validator');
 
 
 const app = express();
+
+//cors
+const cors = require('cors');
+app.use(cors());
 const Models = require('./models.js');
 const Movie = Models.Movie;
 const User = Models.User
@@ -126,7 +132,18 @@ app.get('/user/:username',  passport.authenticate ('jwt', { session: false }), a
   }
 });
 //Allow new users to register;
-app.post('/user', async (req, res) => {
+app.post('/user',[
+  check('Username', 'Username is required').isLength({min: 5}),
+  check('Username', 'Username contains non alphanumeric characters - not allowed.').isAlphanumeric(),
+  check('Password', 'Password is required').not().isEmpty(),
+  check('Email', 'Email does not appear to be valid').isEmail()],
+  async (req, res) => {
+  let errrors = validationResult(req);
+
+  if (!errrors.isEmpty()) {
+    return res.status(422).json({ errrors: errrors.array() })
+  }
+  let hashPassword = User.hashPassword(req.body.password);
   await User.findOne({ username: req.body.username })
     .then((user) => {
       if (user) {
