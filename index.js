@@ -19,7 +19,8 @@ let auth = require('./auth')(app);
 const passport = require('passport');
 require('./passport');
 
-mongoose.connect('mongodb://127.0.0.1:27017/cfDB');
+//mongoose.connect('mongodb://127.0.0.1:27017/cfDB');
+mongoose.connect('process.env.CONNECTION_URI', { useNewUrlParser: true, useUnifiedTopology: true });
 
 
 // Define the root route
@@ -163,8 +164,8 @@ app.put('/user/:Username',
   if (!errors.isEmpty()) {
     return res.status(422).json({ errors: errors.array() });
   }
-  let hashPassword = Users.hashPassword(req.body.Password);
-  await Users.findOneAndUpdate({ Username: req.params.Username }, { $set:
+  let hashPassword = User.hashPassword(req.body.Password);
+  await User.findOneAndUpdate({ Username: req.params.Username }, { $set:
     {
       username: req.body.username,
       password: hashPassword,
