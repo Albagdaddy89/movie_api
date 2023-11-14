@@ -157,14 +157,9 @@ app.put('/user/:Username',
   [
     check('username', 'username is required').isLength({min: 5}),
     check('username', 'username contains non alphanumeric characters - not allowed.').isAlphanumeric(),
-    check('password', 'password is required').not().isEmpty(),
-    check('email', 'email does not appear to be valid').isEmail()
-  ], passport.authenticate('jwt', { session: false }), async (req, res) => {
-  let errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(422).json({ errors: errors.array() });
-  }
   
+  ], passport.authenticate('jwt', { session: false }),
+  async (req, res) => {
   if (!req.body.password || req.body.password.trim() === '') {
     return res.status(400).send("Password is required.");
   }
