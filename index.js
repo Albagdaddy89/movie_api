@@ -164,6 +164,11 @@ app.put('/user/:Username',
   if (!errors.isEmpty()) {
     return res.status(422).json({ errors: errors.array() });
   }
+  
+  if (!req.body.password || req.body.password.trim() === '') {
+    return res.status(400).send("Password is required.");
+  }
+
   let hashPassword = User.hashPassword(req.body.password);
   await User.findOneAndUpdate({ username: req.params.username }, { $set:
     {
@@ -175,6 +180,7 @@ app.put('/user/:Username',
   },
   { new: true }) // This line makes sure that the updated document is returned
   .then((updatedUser) => {
+    
     res.json(updatedUser);
   })
   .catch((err) => {
