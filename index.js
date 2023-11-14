@@ -164,11 +164,11 @@ app.put('/user/:Username',
     return res.status(400).send("Password is required.");
   }
 
-  let hashPassword = User.hashPassword(req.body.password);
+  
   await User.findOneAndUpdate({ username: req.params.username }, { $set:
     {
       username: req.body.username,
-      password: hashPassword,
+      password: req.body.password,
       email: req.body.email,
       
     }
