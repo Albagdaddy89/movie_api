@@ -58,10 +58,10 @@ app.get('/movies/:Title',  passport.authenticate ('jwt', { session: false }), as
 });
 
 //Return data about a genre (description) by name/title (e.g., “Thriller”);
-app.get('/movies/genre/:GenreName',  passport.authenticate ('jwt', { session: false }), async (req, res) => {
+app.get('/movies/Genre/:GenreName',  passport.authenticate ('jwt', { session: false }), async (req, res) => {
   await Movie.find({ "Genre.Name": req.params.GenreName })
     .then((movie) => {
-      res.status(200).json(movie);
+      res.status(201).json(Genre.GenreName.Description);
     })
     .catch((err) => {
       console.error(err)
