@@ -153,34 +153,44 @@ app.post('/user',[
 
 
 // Update a user's info, by username
-app.put(
-  "/user/:Username",[
-    check('username', 'username is required').isLength({min: 5}),
-    check('username', 'username contains non alphanumeric characters - not allowed.').isAlphanumeric()
-  ],
-  passport.authenticate("jwt", { session: false }),
-  async (req, res) => {
-    await User.findOneAndUpdate(
-      { Username: req.params.username },
-      {
-        $set: {
-          username: req.body.username,
-          password: req.body.password,
-          email: req.body.email,
-          birthday: req.body.birthday,
-        },
-      },
-      { new: true }
-    )
-      .then((updatedUser) => {
-        res.json(updatedUser);
-      })
-      .catch((err) => {
-        console.error(err);
-        res.status(500).send("Error: " + err);
-      });
+app.put('/user/:username', 
+  [
+    check('username', 'Username is required').isLength({min: 5}),
+    check('username', 'Username contains non alphanumeric characters - not allowed.').isAlphanumeric(),
+    check('password', 'Password is required').not().isEmpty(),
+    check('email', 'Email does not appear to be valid').isEmail()
+  ], passport.authenticate('jwt', { session: false }), async (req, res) => {
+  
+  let errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(422).json({ errors: errors.array() });
   }
-);
+
+  // Check if the password is provided and not empty
+  if (!req.body.password || req.body.password.trim() === '') {
+    return res.status(400).send("Password is required.");
+  }
+
+  let hashedPassword = User.hashPassword(req.body.password);
+
+  await User.findOneAndUpdate({ username: req.params.username }, { $set:
+    {
+      username: req.body.username,
+      password: hashedPassword,
+      email: req.body.email,
+      birthday: req.body.birthday
+    }
+  },
+  { new: true }) // This line makes sure that the updated document is returned
+  .then((updatedUser) => {
+    res.json(updatedUser);
+  })
+  .catch((err) => {
+    console.error(err);
+    res.status(500).send("Error: " + err);
+  })
+});
+
 
 // Add a movie to a user's list of favorites
 app.post('/user/:username/movies/:MovieID',  passport.authenticate ('jwt', { session: false }), async (req, res) => {
