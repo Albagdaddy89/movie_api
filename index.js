@@ -165,12 +165,12 @@ app.put('/user/:Username',
     return res.status(422).json({ errors: errors.array() });
   }
   let hashPassword = User.hashPassword(req.body.password);
-  await User.findOneAndUpdate({ Username: req.params.username }, { $set:
+  await User.findOneAndUpdate({ username: req.params.username }, { $set:
     {
       username: req.body.username,
       password: hashPassword,
       email: req.body.email,
-      birthday: req.body.birthday
+      
     }
   },
   { new: true }) // This line makes sure that the updated document is returned
