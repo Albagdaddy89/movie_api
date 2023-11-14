@@ -20,7 +20,7 @@ const passport = require('passport');
 require('./passport');
 
 //mongoose.connect('mongodb://127.0.0.1:27017/cfDB');
-mongoose.connect('process.env.CONNECTION_URI', { useNewUrlParser: true, useUnifiedTopology: true });
+mongoose.connect(process.env.CONNECTION_URI, { useNewUrlParser: true, useUnifiedTopology: true });
 
 
 // Define the root route
