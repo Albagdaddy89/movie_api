@@ -19,8 +19,8 @@ let auth = require('./auth')(app);
 const passport = require('passport');
 require('./passport');
 
-//mongoose.connect('mongodb://127.0.0.1:27017/cfDB');
-mongoose.connect(process.env.CONNECTION_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+mongoose.connect('mongodb://127.0.0.1:27017/cfDB');
+//mongoose.connect(process.env.CONNECTION_URI, { useNewUrlParser: true, useUnifiedTopology: true });
 
 
 // Define the root route
@@ -46,8 +46,8 @@ app.get('/movies', passport.authenticate('jwt', { session: false }), async (req,
 //Return data (description, genre, director, image URL, whether it’s featured or not) about a single movie by title to the user;
 app.get('/movies/:Title',  passport.authenticate ('jwt', { session: false }), async (req, res) => {
   await Movie.findOne({ Title: req.params.Title })
-    .then((movie) => {
-      res.status(201).json(movie);
+    .then((movies) => {
+      res.status(201).json(movies);
     })
     .catch((err) => {
       console.error(err)
@@ -58,18 +58,24 @@ app.get('/movies/:Title',  passport.authenticate ('jwt', { session: false }), as
 });
 
 //Return data about a genre (description) by name/title (e.g., “Thriller”);
-app.get('/movies/Genre/:GenreName',  passport.authenticate ('jwt', { session: false }), async (req, res) => {
-  await Movie.find({ "Genre.Name": req.params.Genre })
-    .then((Genre) => {
-      res.status(201).json(Genre.Genre.Description);
-    })
-    .catch((err) => {
-      console.error(err)
-      res.status(500).send('Error: ' + err);
-    });
-
-
+app.get('/movies/Genre/:GenreName', passport.authenticate('jwt', { session: false }), async (req, res) => {
+  try {
+    const movies = await Movie.find({ "Genre.Name": req.params.GenreName });
+    if (movies.length === 0) {
+      res.status(404).send('Genre not found');
+    } else {
+      // Since all movies of the same genre will have the same description,
+      // we can safely return the description from the first movie found
+      res.status(200).json({ description: movies[0].Genre.Description });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error: ' + err);
+  }
 });
+
+
+
 //Return data about a director (bio, birth year, death year) by name;
 app.get('/movies/director/:directorName',  passport.authenticate ('jwt', { session: false }), async (req, res) => {
   await Movie.find({ "Director.Name": req.params.directorName })
