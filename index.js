@@ -58,18 +58,22 @@ app.get('/movies/:Title',  passport.authenticate ('jwt', { session: false }), as
 });
 
 //Return data about a genre (description) by name/title (e.g., “Thriller”);
-app.get('/movies/Genre/:GenreName', passport.authenticate('jwt', { session: false }), async (req, res) => {
+app.get('/movies/genre/:GenreName', passport.authenticate('jwt', { session: false }), async (req, res) => {
+  const genreName = req.params.GenreName;
+  console.log(`Searching for movies in genre: ${genreName}`);
+
   try {
-    const movies = await Movie.find({ "Genre.Name": req.params.GenreName });
+    const movies = await Movie.find({ "Genre.Name": genreName });
+    console.log(`Movies found: ${JSON.stringify(movies)}`);
+
     if (movies.length === 0) {
-      res.status(404).send('Genre not found');
+      res.status(404).send(`No movies found in genre: ${genreName}`);
     } else {
-      // Since all movies of the same genre will have the same description,
-      // we can safely return the description from the first movie found
-      res.status(200).json({ description: movies[0].Genre.Description });
+      // Assuming you want to return all movies in this genre
+      res.status(200).json(movies);
     }
   } catch (err) {
-    console.error(err);
+    console.error(`Error fetching movies for genre ${genreName}: ${err}`);
     res.status(500).send('Error: ' + err);
   }
 });
